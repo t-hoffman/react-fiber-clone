@@ -1,0 +1,28 @@
+{
+  "name": "react-fiber",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm-run-all --parallel dev:*",
+    "dev:server-compilation": "webpack --config webpack.config.server.js --watch",
+    "dev:server": "nodemon ./build/server.js",
+    "dev:client-compilation": "webpack --config webpack.config.client.js --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.21.4",
+    "@babel/preset-env": "^7.21.4",
+    "babel-loader": "^9.1.2",
+    "webpack": "^5.79.0",
+    "webpack-cli": "^5.0.1"
+  },
+  "dependencies": {
+    "@babel/preset-react": "^7.18.6",
+    "express": "^4.18.2",
+    "nodemon": "^2.0.22",
+    "npm-run-all": "^4.1.5"
+  }
+}
