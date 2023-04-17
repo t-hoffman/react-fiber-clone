@@ -1,3 +1,3 @@
-export default {
-  createElement: (type, config, ...args) => ({ type, config }),
-};
+import createElement from "./createElement";
+export { render } from "./Reconciliation";
+export default { createElement };
