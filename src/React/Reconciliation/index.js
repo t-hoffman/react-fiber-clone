@@ -26,6 +26,8 @@ function getFirstSubTask() {
     props: task.newProps,
     alternate: task.dom.__rootFiberContainer,
     stateNode: task.dom,
+    child: null,
+    sibling: null,
     tag: HOST_ROOT,
     effects: [],
   };
@@ -33,73 +35,92 @@ function getFirstSubTask() {
 
 function reconcileChildren(fiber, children) {
   const arrifiedChildren = arrify(children);
-  let alternate;
+
+  let index = 0;
+  let numberOfElements = arrifiedChildren.length;
+  let element, alternate, prevFiber, newFiber;
 
   if (fiber.alternate && fiber.alternate.child) {
     alternate = fiber.alternate.child;
   }
 
+  while (index < numberOfElements || alternate) {
+    element = arrifiedChildren[index];
+    if (!element && alternate) {
+      // If there is an alternate while there is no current element
+      // that means the DOMNode got deleted.
+
+      alternate.effectTag = DELETION;
+      fiber.effects.push(alternate);
+    } else if (element && alternate && element.type !== alternate.type) {
+      newFiber = {
+        alternate,
+        props: element.props,
+        type: element.type,
+        tag: HOST_COMPONENT,
+        stateNode: createDOMElement(element),
+        parent: fiber,
+        effects: [],
+        effectTag: PLACEMENT,
+      };
+
+      alternate.effectTag = DELETION;
+      fiber.effects.push(alternate);
+    } else if (element && alternate) {
+      newFiber = {
+        alternate,
+        props: element.props,
+        type: element.type,
+        tag: HOST_COMPONENT,
+        stateNode: alternate.stateNode,
+        parent: fiber,
+        effects: [],
+        effectTag: UPDATE,
+      };
+    } else if (element) {
+      // Initial render: creating the Fiber tree
+
+      newFiber = {
+        props: element.props,
+        type: element.type,
+        tag: HOST_COMPONENT,
+        stateNode: createDOMElement(element),
+        parent: fiber,
+        effects: [],
+        effectTag: PLACEMENT,
+      };
+    }
+
+    if (index === 0) {
+      fiber.child = newFiber;
+    } else if (element) {
+      prevFiber.sibling = newFiber;
+    }
+
+    if (alternate && alternate.sibling) {
+      alternate = alternate.sibling;
+    } else {
+      alternate = null;
+    }
+
+    prevFiber = newFiber;
+    index++;
+  }
+
   // If there are no children to render, return without
   // creating new Fiber.
 
-  if (arrifiedChildren.length === 0) {
-    // If there is an alternate while there is no child
-    // that means the DOMNode got deleted.
+  // if (arrifiedChildren.length === 0) {
+  //   // If there is an alternate while there is no child
+  //   // that means the DOMNode got deleted.
 
-    if (alternate) {
-      alternate.effectTag = DELETION;
-      fiber.effects.push(alternate);
-    }
+  // if (alternate) {
+  //   alternate.effectTag = DELETION;
+  //   fiber.effects.push(alternate);
+  // }
 
-    return;
-  }
-
-  if (alternate && arrifiedChildren[0].type !== alternate.type) {
-    const newFiber = {
-      alternate,
-      props: arrifiedChildren[0].props,
-      type: arrifiedChildren[0].type,
-      tag: HOST_COMPONENT,
-      stateNode: createDOMElement(arrifiedChildren[0]),
-      parent: fiber,
-      effects: [],
-      effectTag: PLACEMENT,
-    };
-
-    alternate.effectTag = DELETION;
-    fiber.effects.push(alternate);
-
-    return (fiber.child = newFiber);
-  }
-
-  if (alternate) {
-    const newFiber = {
-      alternate,
-      props: arrifiedChildren[0].props,
-      type: arrifiedChildren[0].type,
-      tag: HOST_COMPONENT,
-      stateNode: alternate.stateNode,
-      parent: fiber,
-      effects: [],
-      effectTag: UPDATE,
-    };
-
-    return (fiber.child = newFiber);
-  }
-
-  // Initial render: creating the Fiber tree
-
-  const newFiber = {
-    props: arrifiedChildren[0].props,
-    type: arrifiedChildren[0].type,
-    tag: HOST_COMPONENT,
-    stateNode: createDOMElement(arrifiedChildren[0]),
-    parent: fiber,
-    effects: [],
-    effectTag: PLACEMENT,
-  };
-
-  fiber.child = newFiber;
+  //   return;
+  // }
 }
 
 const commitWork = (item) => {
@@ -138,8 +159,8 @@ function beginTask(fiber) {
 function executeSubTask(fiber) {
   beginTask(fiber);
 
-  if (fiber.child) {
-    return fiber.child;
+  if (fiber.child || fiber.sibling) {
+    return fiber.child ? fiber.child : fiber.child;
   }
 
   let currentlyExecutedFiber = fiber;
@@ -149,6 +170,10 @@ function executeSubTask(fiber) {
       currentlyExecutedFiber.parent.effects.concat(
         currentlyExecutedFiber.effects.concat(currentlyExecutedFiber)
       );
+
+    if (currentlyExecutedFiber.sibling) {
+      return currentlyExecutedFiber.sibling;
+    }
 
     currentlyExecutedFiber = currentlyExecutedFiber.parent;
   }

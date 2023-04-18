@@ -2,29 +2,76 @@ import React, { render } from "./React";
 import { createDOMElement, updateDOMElement } from "./React/DOM";
 
 const App = (
-  <ul>
-    <li>
-      <button onClick={() => console.log("hello")}>BUTTON</button>
-    </li>
-  </ul>
+  <section style={{ marginTop: "15px" }}>
+    <section
+      style={{ backgroundColor: "tomato", padding: "10px" }}
+    >{`<REACT/> IS AWESOME!!`}</section>
+    <section
+      style={{ backgroundColor: "dodgerblue", padding: "10px" }}
+    >{`<REACT/> IS AWESOME!!`}</section>
+    <section
+      style={{ backgroundColor: "tomato", padding: "10px" }}
+    >{`<REACT/> IS AWESOME!!`}</section>
+  </section>
 );
 
 const root = document.getElementById("root");
 
 render(App, root);
 
-const btn = document.createElement("button");
-btn.innerHTML = "Manually rerender!";
+const updateTypeMismatch = document.createElement("button");
+const updateSameType = document.createElement("button");
+const deletion = document.createElement("button");
+updateTypeMismatch.innerHTML = "Typemismatch";
+updateSameType.innerHTML = "Same Type";
+deletion.innerHTML = "Delete";
 
-const rerender = () =>
+const updateTypeMismatchFunc = () =>
   render(
-    <ul>
-      <li>
-        <i>Hey</i>
-      </li>
-    </ul>,
+    <div style={{ marginTop: "15px" }}>
+      <div
+        style={{ backgroundColor: "greenyellow", padding: "10px" }}
+      >{`<updateTypeMismatch/>`}</div>
+      <div
+        style={{ backgroundColor: "greenyellow", padding: "10px" }}
+      >{`<updateTypeMismatch/>`}</div>
+      <div
+        style={{ backgroundColor: "greenyellow", padding: "10px" }}
+      >{`<updateTypeMismatch/>`}</div>
+    </div>,
+    root
+  );
+const updateSameTypeFunc = () =>
+  render(
+    <section style={{ marginTop: "15px" }}>
+      <section
+        style={{ backgroundColor: "deeppink", padding: "10px" }}
+      >{`<sameType/>`}</section>
+      <section
+        style={{ backgroundColor: "deeppink", padding: "10px" }}
+      >{`<sameType/>`}</section>
+      <section
+        style={{ backgroundColor: "deeppink", padding: "10px" }}
+      >{`<sameType/>`}</section>
+    </section>,
+    root
+  );
+const deletionFunc = () =>
+  render(
+    <section style={{ marginTop: "15px" }}>
+      <section
+        style={{ backgroundColor: "aquamarine", padding: "10px" }}
+      >{`<DELETE/>`}</section>
+      <section
+        style={{ backgroundColor: "aquamarine", padding: "10px" }}
+      >{`<DELETE x2/>`}</section>
+    </section>,
     root
   );
 
-btn.addEventListener("click", rerender);
-root.appendChild(btn);
+updateTypeMismatch.addEventListener("click", updateTypeMismatchFunc);
+updateSameType.addEventListener("click", updateSameTypeFunc);
+deletion.addEventListener("click", deletionFunc);
+root.appendChild(updateTypeMismatch);
+root.appendChild(updateSameType);
+root.appendChild(deletion);

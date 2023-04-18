@@ -5,7 +5,9 @@ const app = express();
 const template = `
 <html>
 <head>
-<style>*, body{font-family: sans-serif;background-color:#bcbcbc}</style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+body{background-color:#bcbcbc} *{font-family: 'Poppins'}</style>
 </head>
   <body>
     <div id="root"></div>
