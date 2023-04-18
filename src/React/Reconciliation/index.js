@@ -4,15 +4,23 @@
  * THIS IS THE MAIN FIBER ALGORITHM.
  */
 
-import { arrify, createQueue, requestIdleCallback } from "../Misc";
+import {
+  arrify,
+  createQueue,
+  requestIdleCallback,
+  createReactInstance,
+} from "../Misc";
+
 import {
   ENOUGH_TIME,
+  CLASS_COMPONENT,
   HOST_COMPONENT,
   HOST_ROOT,
   PLACEMENT,
   UPDATE,
   DELETION,
 } from "./../Constants";
+
 import { createDOMElement, updateDOMElement } from "../DOM";
 
 const taskQueue = createQueue();
@@ -32,6 +40,16 @@ function getFirstSubTask() {
     effects: [],
   };
 }
+
+const createStateNode = (element, tag) =>
+  tag === HOST_COMPONENT
+    ? createDOMElement(element)
+    : tag === CLASS_COMPONENT
+    ? createReactInstance(element)
+    : createDOMElement(element);
+
+const getTag = (element) =>
+  typeof element.type === "string" ? HOST_COMPONENT : CLASS_COMPONENT;
 
 function reconcileChildren(fiber, children) {
   const arrifiedChildren = arrify(children);
@@ -57,8 +75,8 @@ function reconcileChildren(fiber, children) {
         alternate,
         props: element.props,
         type: element.type,
-        tag: HOST_COMPONENT,
-        stateNode: createDOMElement(element),
+        tag: getTag(element),
+        stateNode: createStateNode(element, getTag(element)),
         parent: fiber,
         effects: [],
         effectTag: PLACEMENT,
@@ -71,20 +89,20 @@ function reconcileChildren(fiber, children) {
         alternate,
         props: element.props,
         type: element.type,
-        tag: HOST_COMPONENT,
+        tag: getTag(element),
         stateNode: alternate.stateNode,
         parent: fiber,
         effects: [],
         effectTag: UPDATE,
       };
-    } else if (element) {
+    } else if (element && !alternate) {
       // Initial render: creating the Fiber tree
 
       newFiber = {
         props: element.props,
         type: element.type,
-        tag: HOST_COMPONENT,
-        stateNode: createDOMElement(element),
+        tag: getTag(element),
+        stateNode: createStateNode(element, getTag(element)),
         parent: fiber,
         effects: [],
         effectTag: PLACEMENT,
@@ -106,21 +124,6 @@ function reconcileChildren(fiber, children) {
     prevFiber = newFiber;
     index++;
   }
-
-  // If there are no children to render, return without
-  // creating new Fiber.
-
-  // if (arrifiedChildren.length === 0) {
-  //   // If there is an alternate while there is no child
-  //   // that means the DOMNode got deleted.
-
-  // if (alternate) {
-  //   alternate.effectTag = DELETION;
-  //   fiber.effects.push(alternate);
-  // }
-
-  //   return;
-  // }
 }
 
 const commitWork = (item) => {
@@ -138,7 +141,15 @@ const commitWork = (item) => {
   } else if (item.effectTag === DELETION) {
     item.parent.stateNode.removeChild(item.stateNode);
   } else if (item.effectTag === PLACEMENT) {
-    item.parent.stateNode.appendChild(item.stateNode);
+    let fiber = item;
+    let parentFiber = item.parent;
+    while (parentFiber.tag === CLASS_COMPONENT) {
+      parentFiber = parentFiber.parent;
+    }
+
+    if (fiber.tag === HOST_COMPONENT) {
+      parentFiber.stateNode.appendChild(item.stateNode);
+    }
   }
 };
 
@@ -151,9 +162,11 @@ function commitAllWork(fiber) {
 }
 
 function beginTask(fiber) {
-  const children = fiber.props.children;
-
-  reconcileChildren(fiber, children);
+  if (fiber.tag === CLASS_COMPONENT) {
+    reconcileChildren(fiber, fiber.stateNode.render());
+  } else if (fiber.tag === HOST_COMPONENT || fiber.tag === HOST_ROOT) {
+    reconcileChildren(fiber, fiber.props.children);
+  }
 }
 
 function executeSubTask(fiber) {

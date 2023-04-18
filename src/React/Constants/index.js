@@ -1,3 +1,3 @@
-export { HOST_COMPONENT, HOST_ROOT } from "./FiberTags";
-export { PLACEMENT, UPDATE, DELETION } from "./FiberEffectTags";
+export * from "./FiberTags";
+export * from "./FiberEffectTags";
 export { ENOUGH_TIME } from "./Reconciliation";

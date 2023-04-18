@@ -7,7 +7,7 @@ const template = `
 <head>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
-body{background-color:#bcbcbc} *{font-family: 'Poppins'}</style>
+body{background-color:#bbb} *{font-family: 'Poppins'}</style>
 </head>
   <body>
     <div id="root"></div>
