@@ -1,11 +1,30 @@
 import React, { render } from "./React";
 import { createDOMElement, updateDOMElement } from "./React/DOM";
 
-const App = <div>Hello World!</div>;
+const App = (
+  <ul>
+    <li>
+      <button onClick={() => console.log("hello")}>BUTTON</button>
+    </li>
+  </ul>
+);
 
 const root = document.getElementById("root");
 
-render(
-  createDOMElement(App).appendChild(createDOMElement(App.props.children[0])),
-  root
-);
+render(App, root);
+
+const btn = document.createElement("button");
+btn.innerHTML = "Manually rerender!";
+
+const rerender = () =>
+  render(
+    <ul>
+      <li>
+        <i>Hey</i>
+      </li>
+    </ul>,
+    root
+  );
+
+btn.addEventListener("click", rerender);
+root.appendChild(btn);

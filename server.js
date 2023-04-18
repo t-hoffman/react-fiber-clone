@@ -4,6 +4,9 @@ const app = express();
 
 const template = `
 <html>
+<head>
+<style>*, body{font-family: sans-serif;background-color:#bcbcbc}</style>
+</head>
   <body>
     <div id="root"></div>
   </body>

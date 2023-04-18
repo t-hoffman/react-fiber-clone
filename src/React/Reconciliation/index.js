@@ -4,26 +4,156 @@
  * THIS IS THE MAIN FIBER ALGORITHM.
  */
 
-const requestIdleCallback = window.requestIdleCallback;
+import { arrify, createQueue, requestIdleCallback } from "../Misc";
+import {
+  ENOUGH_TIME,
+  HOST_COMPONENT,
+  HOST_ROOT,
+  PLACEMENT,
+  UPDATE,
+  DELETION,
+} from "./../Constants";
+import { createDOMElement, updateDOMElement } from "../DOM";
 
-function createQueue() {
-  const taskQueue = [];
+const taskQueue = createQueue();
+let subTask = null;
+let pendingCommit = null;
+
+function getFirstSubTask() {
+  let task = taskQueue.pop();
 
   return {
-    pop: () => taskQueue.shift(),
-    push: (item) => taskQueue.push(item),
-    isEmpty: () => taskQueue.length === 0,
+    props: task.newProps,
+    alternate: task.dom.__rootFiberContainer,
+    stateNode: task.dom,
+    tag: HOST_ROOT,
+    effects: [],
   };
 }
 
-const ENOUGH_TIME = 1;
-const taskQueue = createQueue();
-let subTask = null;
+function reconcileChildren(fiber, children) {
+  const arrifiedChildren = arrify(children);
+  let alternate;
 
-function getFirstSubTask() {}
+  if (fiber.alternate && fiber.alternate.child) {
+    alternate = fiber.alternate.child;
+  }
 
-function executeSubTask(subTask) {
-  return;
+  // If there are no children to render, return without
+  // creating new Fiber.
+
+  if (arrifiedChildren.length === 0) {
+    // If there is an alternate while there is no child
+    // that means the DOMNode got deleted.
+
+    if (alternate) {
+      alternate.effectTag = DELETION;
+      fiber.effects.push(alternate);
+    }
+
+    return;
+  }
+
+  if (alternate && arrifiedChildren[0].type !== alternate.type) {
+    const newFiber = {
+      alternate,
+      props: arrifiedChildren[0].props,
+      type: arrifiedChildren[0].type,
+      tag: HOST_COMPONENT,
+      stateNode: createDOMElement(arrifiedChildren[0]),
+      parent: fiber,
+      effects: [],
+      effectTag: PLACEMENT,
+    };
+
+    alternate.effectTag = DELETION;
+    fiber.effects.push(alternate);
+
+    return (fiber.child = newFiber);
+  }
+
+  if (alternate) {
+    const newFiber = {
+      alternate,
+      props: arrifiedChildren[0].props,
+      type: arrifiedChildren[0].type,
+      tag: HOST_COMPONENT,
+      stateNode: alternate.stateNode,
+      parent: fiber,
+      effects: [],
+      effectTag: UPDATE,
+    };
+
+    return (fiber.child = newFiber);
+  }
+
+  // Initial render: creating the Fiber tree
+
+  const newFiber = {
+    props: arrifiedChildren[0].props,
+    type: arrifiedChildren[0].type,
+    tag: HOST_COMPONENT,
+    stateNode: createDOMElement(arrifiedChildren[0]),
+    parent: fiber,
+    effects: [],
+    effectTag: PLACEMENT,
+  };
+
+  fiber.child = newFiber;
+}
+
+const commitWork = (item) => {
+  if (item.effectTag === UPDATE) {
+    updateDOMElement(item.stateNode, item.alternate.props, item.props);
+
+    // If there was an update but there was a type mismatch
+    // stateNode had to be created.  Since it is a different instance
+    // than the previous one it needs to be re-attached to the appropriate
+    // DOMNode.
+
+    if (item.parent.stateNode !== item.alternate.parent.stateNode) {
+      item.parent.stateNode.appendChild(item.stateNode);
+    }
+  } else if (item.effectTag === DELETION) {
+    item.parent.stateNode.removeChild(item.stateNode);
+  } else if (item.effectTag === PLACEMENT) {
+    item.parent.stateNode.appendChild(item.stateNode);
+  }
+};
+
+function commitAllWork(fiber) {
+  console.log(fiber);
+  fiber.effects.forEach(commitWork);
+
+  fiber.stateNode.__rootFiberContainer = fiber;
+  pendingCommit = null;
+}
+
+function beginTask(fiber) {
+  const children = fiber.props.children;
+
+  reconcileChildren(fiber, children);
+}
+
+function executeSubTask(fiber) {
+  beginTask(fiber);
+
+  if (fiber.child) {
+    return fiber.child;
+  }
+
+  let currentlyExecutedFiber = fiber;
+
+  while (currentlyExecutedFiber.parent) {
+    currentlyExecutedFiber.parent.effects =
+      currentlyExecutedFiber.parent.effects.concat(
+        currentlyExecutedFiber.effects.concat(currentlyExecutedFiber)
+      );
+
+    currentlyExecutedFiber = currentlyExecutedFiber.parent;
+  }
+
+  pendingCommit = currentlyExecutedFiber;
 }
 
 function workLoop(deadline) {
@@ -33,6 +163,10 @@ function workLoop(deadline) {
 
   while (subTask && deadline.timeRemaining() > ENOUGH_TIME) {
     subTask = executeSubTask(subTask);
+  }
+
+  if (pendingCommit) {
+    commitAllWork(pendingCommit);
   }
 }
 
@@ -45,10 +179,7 @@ function performTask(deadline) {
 }
 
 export function render(element, DOMNode) {
-  // temporary
-  DOMNode.appendChild(element);
-
-  taskQueue.push({ element, DOMNode });
+  taskQueue.push({ dom: DOMNode, newProps: { children: element } });
 
   requestIdleCallback(performTask);
 }
