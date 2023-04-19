@@ -4,7 +4,7 @@
 
 const TEXT_ELEMENT = "TEXT_ELEMENT";
 
-function createTextElement(nodeValue) {
+export function createTextElement(nodeValue) {
   return createElement(TEXT_ELEMENT, { nodeValue });
 }
 

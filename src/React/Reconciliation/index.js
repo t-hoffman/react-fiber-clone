@@ -5,13 +5,6 @@
  */
 
 import {
-  arrify,
-  createQueue,
-  requestIdleCallback,
-  createReactInstance,
-} from "../Misc";
-
-import {
   ENOUGH_TIME,
   CLASS_COMPONENT,
   HOST_COMPONENT,
@@ -19,9 +12,19 @@ import {
   PLACEMENT,
   UPDATE,
   DELETION,
+  FUNCTIONAL_COMPONENT,
 } from "./../Constants";
 
-import { createDOMElement, updateDOMElement } from "../DOM";
+import {
+  arrify,
+  createQueue,
+  requestIdleCallback,
+  createStateNode,
+  getTag,
+  traverseToRoot,
+} from "../Misc";
+
+import { updateDOMElement } from "../DOM";
 
 const taskQueue = createQueue();
 let subTask = null;
@@ -29,6 +32,21 @@ let pendingCommit = null;
 
 function getFirstSubTask() {
   let task = taskQueue.pop();
+
+  if (task.from === CLASS_COMPONENT) {
+    const root = traverseToRoot(task.instance);
+    task.instance.__fiber.partialState = task.partialState;
+
+    return {
+      props: root.props,
+      alternate: root,
+      stateNode: root.stateNode,
+      child: null,
+      sibling: null,
+      tag: HOST_ROOT,
+      effects: [],
+    };
+  }
 
   return {
     props: task.newProps,
@@ -40,16 +58,6 @@ function getFirstSubTask() {
     effects: [],
   };
 }
-
-const createStateNode = (element, tag) =>
-  tag === HOST_COMPONENT
-    ? createDOMElement(element)
-    : tag === CLASS_COMPONENT
-    ? createReactInstance(element)
-    : createDOMElement(element);
-
-const getTag = (element) =>
-  typeof element.type === "string" ? HOST_COMPONENT : CLASS_COMPONENT;
 
 function reconcileChildren(fiber, children) {
   const arrifiedChildren = arrify(children);
@@ -64,6 +72,7 @@ function reconcileChildren(fiber, children) {
 
   while (index < numberOfElements || alternate) {
     element = arrifiedChildren[index];
+
     if (!element && alternate) {
       // If there is an alternate while there is no current element
       // that means the DOMNode got deleted.
@@ -76,11 +85,12 @@ function reconcileChildren(fiber, children) {
         props: element.props,
         type: element.type,
         tag: getTag(element),
-        stateNode: createStateNode(element, getTag(element)),
         parent: fiber,
         effects: [],
         effectTag: PLACEMENT,
       };
+
+      newFiber.stateNode = createStateNode(newFiber);
 
       alternate.effectTag = DELETION;
       fiber.effects.push(alternate);
@@ -91,6 +101,7 @@ function reconcileChildren(fiber, children) {
         type: element.type,
         tag: getTag(element),
         stateNode: alternate.stateNode,
+        partialState: alternate.partialState,
         parent: fiber,
         effects: [],
         effectTag: UPDATE,
@@ -102,11 +113,12 @@ function reconcileChildren(fiber, children) {
         props: element.props,
         type: element.type,
         tag: getTag(element),
-        stateNode: createStateNode(element, getTag(element)),
         parent: fiber,
         effects: [],
         effectTag: PLACEMENT,
       };
+
+      newFiber.stateNode = createStateNode(newFiber);
     }
 
     if (index === 0) {
@@ -125,10 +137,21 @@ function reconcileChildren(fiber, children) {
     index++;
   }
 }
-
+//
+//
+//
+// here
 const commitWork = (item) => {
+  if (item.tag === CLASS_COMPONENT || item.tag === FUNCTIONAL_COMPONENT) {
+    // console.log(item.stateNode.__fiber);
+    item.stateNode.__fiber = item;
+    // console.log(item.stateNode.__fiber);
+  }
+
   if (item.effectTag === UPDATE) {
-    updateDOMElement(item.stateNode, item.alternate.props, item.props);
+    if (item.tag === HOST_COMPONENT || item.tag === HOST_ROOT) {
+      updateDOMElement(item.stateNode, item.alternate.props, item.props);
+    }
 
     // If there was an update but there was a type mismatch
     // stateNode had to be created.  Since it is a different instance
@@ -139,11 +162,27 @@ const commitWork = (item) => {
       item.parent.stateNode.appendChild(item.stateNode);
     }
   } else if (item.effectTag === DELETION) {
-    item.parent.stateNode.removeChild(item.stateNode);
+    let fiber = item;
+    let parentFiber = item.parent;
+
+    while (
+      fiber.tag === CLASS_COMPONENT ||
+      fiber.tag === FUNCTIONAL_COMPONENT
+    ) {
+      fiber = fiber.child;
+    }
+
+    if (parentFiber.tag === HOST_COMPONENT) {
+      parentFiber.stateNode.removeChild(fiber.stateNode);
+    }
   } else if (item.effectTag === PLACEMENT) {
     let fiber = item;
     let parentFiber = item.parent;
-    while (parentFiber.tag === CLASS_COMPONENT) {
+
+    while (
+      parentFiber.tag === CLASS_COMPONENT ||
+      parentFiber.tag === FUNCTIONAL_COMPONENT
+    ) {
       parentFiber = parentFiber.parent;
     }
 
@@ -154,7 +193,7 @@ const commitWork = (item) => {
 };
 
 function commitAllWork(fiber) {
-  console.log(fiber);
+  // console.log("FIBER:", fiber);
   fiber.effects.forEach(commitWork);
 
   fiber.stateNode.__rootFiberContainer = fiber;
@@ -163,7 +202,21 @@ function commitAllWork(fiber) {
 
 function beginTask(fiber) {
   if (fiber.tag === CLASS_COMPONENT) {
+    // console.log(fiber);
+
+    if (fiber.partialState) {
+      fiber.stateNode.state = {
+        ...fiber.stateNode.state,
+        ...fiber.partialState,
+      };
+    }
+
+    fiber.stateNode.props = fiber.props;
+    fiber.partialState = null;
+
     reconcileChildren(fiber, fiber.stateNode.render());
+  } else if (fiber.tag === FUNCTIONAL_COMPONENT) {
+    reconcileChildren(fiber, fiber.stateNode(fiber.props));
   } else if (fiber.tag === HOST_COMPONENT || fiber.tag === HOST_ROOT) {
     reconcileChildren(fiber, fiber.props.children);
   }
@@ -172,9 +225,7 @@ function beginTask(fiber) {
 function executeSubTask(fiber) {
   beginTask(fiber);
 
-  if (fiber.child || fiber.sibling) {
-    return fiber.child ? fiber.child : fiber.child;
-  }
+  if (fiber.child) return fiber.child;
 
   let currentlyExecutedFiber = fiber;
 
@@ -203,9 +254,7 @@ function workLoop(deadline) {
     subTask = executeSubTask(subTask);
   }
 
-  if (pendingCommit) {
-    commitAllWork(pendingCommit);
-  }
+  if (pendingCommit) commitAllWork(pendingCommit);
 }
 
 function performTask(deadline) {
@@ -214,6 +263,12 @@ function performTask(deadline) {
   if (subTask || taskQueue.length > 0) {
     requestIdleCallback(performTask);
   }
+}
+
+export function scheduleUpdate(instance, partialState) {
+  taskQueue.push({ from: CLASS_COMPONENT, instance, partialState });
+
+  requestIdleCallback(performTask);
 }
 
 export function render(element, DOMNode) {
