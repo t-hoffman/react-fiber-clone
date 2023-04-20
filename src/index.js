@@ -1,7 +1,7 @@
 import React, { render, Component } from "./React";
 
-const Todos = (props) =>
-  props.todos.map((todo) => (
+const Todos = ({ todos, toggle, setState }) =>
+  todos.map((todo, idx) => (
     <div
       key={todo.id}
       style={{ display: "flex", justifyContent: "space-around" }}
@@ -14,8 +14,16 @@ const Todos = (props) =>
       >
         {todo.name}
       </div>
-      <button onClick={() => props.toggle(todo)}>
-        {todo.completed ? `Mark it undone` : `Mark it complete`}
+      <button onClick={() => toggle(todo)}>
+        {todo.completed ? `Undone` : `Done`}
+      </button>
+      <button
+        onClick={() => {
+          const { [idx]: d, ...keep } = todos;
+          setState(Object.values(keep));
+        }}
+      >
+        Delete
       </button>
     </div>
   ));
@@ -101,6 +109,7 @@ class Todo extends Component {
 
     this.handleTodoAppend = this.handleTodoAppend.bind(this);
     this.handleToggle = this.handleToggle.bind(this);
+    this.handleChange = this.handleChange.bind(this);
   }
 
   handleToggle(todo) {
@@ -110,11 +119,15 @@ class Todo extends Component {
 
     copy[index] = { ...copy[index], completed: !copy[index].completed };
 
-    this.setState({ todos: copy });
+    this.setState({ ...this.state, todos: copy });
   }
 
   handleTodoAppend(todo) {
-    this.setState({ todos: [...this.state.todos, todo] });
+    this.setState({ ...this.state, todos: [...this.state.todos, todo] });
+  }
+
+  handleChange(newState) {
+    this.setState({ todos: newState });
   }
 
   render() {
@@ -128,7 +141,12 @@ class Todo extends Component {
           </span>
         </div>
         <section style={{ padding: "5px" }}>
-          <Todos todos={this.state.todos} toggle={this.handleToggle} />
+          <Todos
+            todos={this.state.todos}
+            toggle={this.handleToggle}
+            setState={this.handleChange}
+            color={this.state.color}
+          />
         </section>
         <CreateTodo onTodoCreation={this.handleTodoAppend} />
       </div>
