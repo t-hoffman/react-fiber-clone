@@ -137,6 +137,28 @@ function reconcileChildren(fiber, children) {
     index++;
   }
 }
+
+function copyChildren(fiber) {
+  let alternate, prevFiber, newFiber;
+
+  if (fiber.alternate && fiber.alternate.child) {
+    alternate = fiber.alternate.child;
+  }
+
+  while (alternate) {
+    newFiber = { ...alternate, alternate, parent: fiber, effects: [] };
+
+    if (!prevFiber) {
+      fiber.child = newFiber;
+    } else {
+      fiber.sibling = newFiber;
+    }
+
+    prevFiber = newFiber;
+    alternate = alternate.sibling;
+  }
+}
+
 //
 //
 //
@@ -200,21 +222,42 @@ function commitAllWork(fiber) {
   pendingCommit = null;
 }
 
+const calculateState = (fiber) => {
+  let nextState = fiber.partialState
+    ? {
+        ...fiber.stateNode.state,
+        ...fiber.partialState,
+      }
+    : fiber.stateNode.state;
+
+  fiber.partialState = null;
+
+  const derivedState = fiber.type.getDerivedStateFromProps(
+    fiber.props,
+    nextState
+  );
+
+  return { ...nextState, ...derivedState };
+};
+
 function beginTask(fiber) {
   if (fiber.tag === CLASS_COMPONENT) {
     // console.log(fiber);
 
-    if (fiber.partialState) {
-      fiber.stateNode.state = {
-        ...fiber.stateNode.state,
-        ...fiber.partialState,
-      };
-    }
+    const nextState = calculateState(fiber);
+    const shouldRender =
+      fiber.effectTag === PLACEMENT
+        ? true
+        : fiber.stateNode.shouldComponentUpdate(fiber.props, nextState);
 
     fiber.stateNode.props = fiber.props;
-    fiber.partialState = null;
+    fiber.stateNode.state = nextState;
 
-    reconcileChildren(fiber, fiber.stateNode.render());
+    if (shouldRender) {
+      reconcileChildren(fiber, fiber.stateNode.render());
+    } else {
+      copyChildren(fiber);
+    }
   } else if (fiber.tag === FUNCTIONAL_COMPONENT) {
     reconcileChildren(fiber, fiber.stateNode(fiber.props));
   } else if (fiber.tag === HOST_COMPONENT || fiber.tag === HOST_ROOT) {
