@@ -235,8 +235,8 @@ function commitAllWork(fiber) {
 
   withSnapshot.forEach((effect) => {
     effect.snapshotEffect = effect.stateNode.getSnapshotBeforeUpdate(
-      effect.prevProps,
-      effect.prevState
+      effect.memoizedProps,
+      effect.memoizedState
     );
   });
 
@@ -299,8 +299,8 @@ function commitAllWork(fiber) {
 
   updateEffects.forEach((effect) => {
     effect.stateNode.componentDidUpdate(
-      effect.prevProps,
-      effect.prevState,
+      effect.memoizedProps,
+      effect.memoizedState,
       effect.snapshotEffect
     );
   });
@@ -333,8 +333,8 @@ function beginTask(fiber) {
         : fiber.stateNode.shouldComponentUpdate(fiber.props, nextState);
 
     if (fiber.effectTag === UPDATE) {
-      fiber.prevState = fiber.stateNode.state;
-      fiber.prevProps = fiber.stateNode.props;
+      fiber.memoizedState = fiber.stateNode.state;
+      fiber.memoizedProps = fiber.stateNode.props;
     }
 
     fiber.stateNode.props = fiber.props;
@@ -390,7 +390,7 @@ function workLoop(deadline) {
 function performTask(deadline) {
   workLoop(deadline);
 
-  if (subTask || taskQueue.length > 0) {
+  if (subTask || !taskQueue.isEmpty) {
     requestIdleCallback(performTask);
   }
 }

@@ -173,12 +173,6 @@ class Todo extends Component {
           </span>
         </div>
         <section style={{ padding: "5px" }}>
-          <button
-            onClick={() => this.setState({ visible: !this.state.visible })}
-            ref={this.ref}
-          >
-            {this.state.visible ? "Unmount" : "Mount"}
-          </button>
           <Todos
             todos={this.state.todos}
             toggle={this.handleToggle}
@@ -186,6 +180,12 @@ class Todo extends Component {
           />
         </section>
         <CreateTodo onTodoCreation={this.handleTodoAppend} />
+        <button
+          onClick={() => this.setState({ visible: !this.state.visible })}
+          ref={this.ref}
+        >
+          <b>{this.state.visible ? "Unmount" : "Mount"}</b>
+        </button>
         {this.state.visible ? (
           <Visible
             ref={(ref) =>
@@ -206,7 +206,7 @@ class Visible extends Component {
   }
 
   render() {
-    return <div>Visible</div>;
+    return <div style={{ padding: "10px" }}>Visible</div>;
   }
 }
 
