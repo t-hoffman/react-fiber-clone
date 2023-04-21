@@ -1,4 +1,4 @@
-import React, { render, Component, createRef } from "./React";
+import React, { render, Component, createRef, useState } from "./React";
 
 class Todos extends Component {
   render() {
@@ -100,6 +100,38 @@ class CreateTodo extends Component {
   }
 }
 
+const Counter = () => {
+  const [count, setCount] = useState(0);
+  const [greeting, setGreeting] = useState("<COUNTER/>");
+
+  return (
+    <div>
+      <div
+        style={{
+          padding: "15px",
+          backgroundColor: "greenyellow",
+          margin: "10px 0",
+        }}
+      >
+        <span
+          style={{ backgroundColor: "black", padding: "3px", color: "white" }}
+        >
+          <b>{greeting}</b>
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ padding: "10px" }}>
+          <span style={{ fontSize: "18pt" }}>{count}</span>
+        </div>
+        <div>
+          <button onClick={() => setCount(count + 1)}>+</button>
+          <button onClick={() => setGreeting("<TYLER/>")}>GREET</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 class Todo extends Component {
   constructor(props) {
     super(props);
@@ -169,7 +201,7 @@ class Todo extends Component {
           <span
             style={{ backgroundColor: "black", padding: "3px", color: "white" }}
           >
-            <b>{`<TODOS/>`}</b>
+            <b ref={this.ref}>{`<TODOS/>`}</b>
           </span>
         </div>
         <section style={{ padding: "5px" }}>
@@ -180,33 +212,9 @@ class Todo extends Component {
           />
         </section>
         <CreateTodo onTodoCreation={this.handleTodoAppend} />
-        <button
-          onClick={() => this.setState({ visible: !this.state.visible })}
-          ref={this.ref}
-        >
-          <b>{this.state.visible ? "Unmount" : "Mount"}</b>
-        </button>
-        {this.state.visible ? (
-          <Visible
-            ref={(ref) =>
-              ref && console.log("Visible > get state from ref", ref.state)
-            }
-          />
-        ) : null}
+        <Counter />
       </div>
     );
-  }
-}
-
-class Visible extends Component {
-  state = { tyler: "is amazing" };
-
-  componentWillUnmount() {
-    console.log("unmount");
-  }
-
-  render() {
-    return <div style={{ padding: "10px" }}>Visible</div>;
   }
 }
 
