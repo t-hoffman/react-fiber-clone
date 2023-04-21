@@ -10,9 +10,15 @@ export class Component {
     return true;
   }
 
+  componentDidMount() {}
+
+  componentDidUpdate() {}
+
+  componentWillUnmount() {}
+
+  static getDerivedStateFromProps() {}
+
   setState(partialState) {
     scheduleUpdate(this, partialState);
   }
-
-  static getDerivedStateFromProps() {}
 }

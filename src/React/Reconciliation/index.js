@@ -105,6 +105,9 @@ function reconcileChildren(fiber, children) {
         parent: fiber,
         effects: [],
         effectTag: UPDATE,
+        snapshotEffect: alternate.stateNode.getSnapshotBeforeUpdate
+          ? true
+          : undefined,
       };
     } else if (element && !alternate) {
       // Initial render: creating the Fiber tree
@@ -194,6 +197,13 @@ const commitWork = (item) => {
       fiber = fiber.child;
     }
 
+    while (
+      parentFiber.tag === CLASS_COMPONENT ||
+      parentFiber.tag === FUNCTIONAL_COMPONENT
+    ) {
+      parentFiber = parentFiber.parent;
+    }
+
     if (parentFiber.tag === HOST_COMPONENT) {
       parentFiber.stateNode.removeChild(fiber.stateNode);
     }
@@ -214,12 +224,86 @@ const commitWork = (item) => {
   }
 };
 
+/**
+ * commitAllWork is called right after Fiber is fully rendered
+ */
+
 function commitAllWork(fiber) {
   // console.log("FIBER:", fiber);
-  fiber.effects.forEach(commitWork);
 
+  const withSnapshot = fiber.effects.filter((effect) => effect.snapshotEffect);
+
+  withSnapshot.forEach((effect) => {
+    effect.snapshotEffect = effect.stateNode.getSnapshotBeforeUpdate(
+      effect.prevProps,
+      effect.prevState
+    );
+  });
+
+  /**
+   * Commit all the painting related work.
+   */
+  fiber.effects.forEach(commitWork);
   fiber.stateNode.__rootFiberContainer = fiber;
   pendingCommit = null;
+
+  const assignRefs = fiber.effects.filter(
+    (effect) =>
+      effect.props.ref &&
+      effect.effectTag !== FUNCTIONAL_COMPONENT &&
+      (effect.effectTag === PLACEMENT || effect.effectTag === UPDATE)
+  );
+
+  const removeRefs = fiber.effects.filter(
+    (effect) =>
+      effect.props.ref &&
+      effect.effectTag !== FUNCTIONAL_COMPONENT &&
+      effect.effectTag === DELETION
+  );
+
+  assignRefs.forEach(({ props: { ref }, stateNode }) => {
+    if (typeof ref === "function") {
+      ref(stateNode);
+    } else {
+      ref.current = stateNode;
+    }
+  });
+
+  removeRefs.forEach(({ props: { ref } }) => {
+    if (typeof ref === "function") {
+      ref(null);
+    } else {
+      ref.current = null;
+    }
+  });
+
+  const mountEffects = fiber.effects.filter(
+    (effect) => effect.effectTag === PLACEMENT && effect.tag === CLASS_COMPONENT
+  );
+
+  mountEffects.forEach((effect) => {
+    effect.stateNode.componentDidMount();
+  });
+
+  const unMountEffects = fiber.effects.filter(
+    (effect) => effect.effectTag === DELETION && effect.tag === CLASS_COMPONENT
+  );
+
+  unMountEffects.forEach((effect) => {
+    effect.stateNode.componentWillUnmount();
+  });
+
+  const updateEffects = fiber.effects.filter(
+    (effect) => effect.effectTag === UPDATE && effect.tag === CLASS_COMPONENT
+  );
+
+  updateEffects.forEach((effect) => {
+    effect.stateNode.componentDidUpdate(
+      effect.prevProps,
+      effect.prevState,
+      effect.snapshotEffect
+    );
+  });
 }
 
 const calculateState = (fiber) => {
@@ -242,13 +326,16 @@ const calculateState = (fiber) => {
 
 function beginTask(fiber) {
   if (fiber.tag === CLASS_COMPONENT) {
-    // console.log(fiber);
-
     const nextState = calculateState(fiber);
     const shouldRender =
       fiber.effectTag === PLACEMENT
         ? true
         : fiber.stateNode.shouldComponentUpdate(fiber.props, nextState);
+
+    if (fiber.effectTag === UPDATE) {
+      fiber.prevState = fiber.stateNode.state;
+      fiber.prevProps = fiber.stateNode.props;
+    }
 
     fiber.stateNode.props = fiber.props;
     fiber.stateNode.state = nextState;

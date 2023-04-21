@@ -1,4 +1,4 @@
-import createReactInstance from "../CreateReactInstance";
+import createReactInstance from "../createReactInstance";
 import { HOST_COMPONENT } from "../../Constants";
 import { createDOMElement } from "../../DOM";
 

@@ -1,117 +1,4 @@
-import React, { render, Component } from "./React";
-
-// const Todos = (props) =>
-//   props.todos.map((todo) => (
-//     <div
-//       key={todo.id}
-//       style={{ display: "flex", justifyContent: "space-around" }}
-//     >
-//       <div style={{ textDecoration: todo.completed ? "line-through" : "none" }}>
-//         {todo.name}
-//       </div>
-//       <button onClick={() => props.toggle(todo)}>
-//         {todo.completed ? `Mark it undone` : `Mark it complete`}
-//       </button>
-//     </div>
-//   ));
-
-// class CreateTodo extends Component {
-//   constructor(props) {
-//     super(props);
-
-//     this.state = { input: "" };
-//   }
-
-//   render() {
-//     return (
-//       <div style={{ display: "flex", justifyContent: "space-around" }}>
-//         <div
-//           style={{
-//             display: "flex",
-//             justifyContent: "space-around",
-//             flexDirection: "column",
-//           }}
-//         >
-//           <input
-//             value={this.state.input}
-//             onChange={(e) => this.setState({ input: e.target.value })}
-//           />
-//           <button
-//             onClick={() => {
-//               this.props.onTodoCreation({
-//                 name: this.state.input,
-//                 completed: false,
-//                 id: Math.round(Math.random() * 10000, 2),
-//               });
-//             }}
-//           >
-//             Create todo
-//           </button>
-//         </div>
-//       </div>
-//     );
-//   }
-// }
-
-// class Todo extends Component {
-//   constructor(props) {
-//     super(props);
-
-//     this.state = {
-//       todos: [
-//         {
-//           completed: false,
-//           id: 1,
-//           name: "Where did I go wrong?",
-//         },
-//         {
-//           completed: false,
-//           id: 2,
-//           name: "Make coffee!",
-//         },
-//         {
-//           completed: false,
-//           id: 3,
-//           name: "Clean the house",
-//         },
-//       ],
-//     };
-
-//     this.handleTodoAppend = this.handleTodoAppend.bind(this);
-//     this.handleToggle = this.handleToggle.bind(this);
-//   }
-
-//   shouldComponentUpdate(nextProps, nextState) {
-//     return false;
-//   }
-
-//   handleToggle(todo) {
-//     const copy = [...this.state.todos];
-
-//     const index = copy.findIndex((t) => t.id === todo.id);
-
-//     copy[index] = { ...copy[index], completed: !copy[index].completed };
-
-//     this.setState({ todos: copy });
-//   }
-
-//   handleTodoAppend(todo) {
-//     this.setState({ todos: [...this.state.todos, todo] });
-//   }
-
-//   render() {
-//     return (
-//       <div>
-//         <Todos todos={this.state.todos} toggle={this.handleToggle} />
-//         <CreateTodo onTodoCreation={this.handleTodoAppend} />
-//       </div>
-//     );
-//   }
-// }
-
-// const root = document.getElementById("root");
-
-// render(<Todo />, root);
+import React, { render, Component, createRef } from "./React";
 
 class Todos extends Component {
   render() {
@@ -132,10 +19,10 @@ class Todos extends Component {
           {todo.completed ? `Undone` : `Done`}
         </button>
         <button
-        // onClick={() => {
-        //   const { [idx]: d, ...keep } = todos;
-        //   setState(Object.values(keep));
-        // }}
+          onClick={() => {
+            const { [idx]: remove, ...keep } = this.props.todos;
+            this.props.change(Object.values(keep));
+          }}
         >
           Delete
         </button>
@@ -144,34 +31,6 @@ class Todos extends Component {
   }
 }
 
-// const Todos = ({ todos, toggle, setState }) =>
-//   todos.map((todo, idx) => (
-//     <div
-//       key={todo.id}
-//       style={{ display: "flex", justifyContent: "space-around" }}
-//     >
-//       <div
-//         style={{
-//           textDecoration: todo.completed ? "line-through" : "none",
-//           flexGrow: 1,
-//         }}
-//       >
-//         {todo.name}
-//       </div>
-//       <button onClick={() => toggle(todo)}>
-//         {todo.completed ? `Undone` : `Done`}
-//       </button>
-//       <button
-//         onClick={() => {
-//           const { [idx]: d, ...keep } = todos;
-//           setState(Object.values(keep));
-//         }}
-//       >
-//         Delete
-//       </button>
-//     </div>
-//   ));
-
 class CreateTodo extends Component {
   constructor(props) {
     super(props);
@@ -179,8 +38,17 @@ class CreateTodo extends Component {
     this.state = { input: "" };
   }
 
+  getSnapshotBeforeUpdate(prevProps, prevState) {
+    return { snappyshot: "hello world" };
+  }
+
+  componentDidUpdate(prevProps, prevState, snapShot) {
+    console.log(prevProps);
+    console.log(prevState);
+    console.log(snapShot);
+  }
+
   render() {
-    console.log(this.state.input);
     return (
       <div style={{ display: "flex", justifyContent: "space-around" }}>
         <div
@@ -204,13 +72,15 @@ class CreateTodo extends Component {
           />
           <button
             onClick={() => {
-              this.props.onTodoCreation({
-                name: this.state.input,
-                completed: false,
-                id: Math.round(Math.random() * 10000, 2),
-              });
+              if (this.state.input) {
+                this.props.onTodoCreation({
+                  name: this.state.input,
+                  completed: false,
+                  id: Math.round(Math.random() * 10000, 2),
+                });
 
-              this.setState({ input: "" });
+                this.setState({ input: "" });
+              }
             }}
             style={{
               width: "fit-content",
@@ -234,6 +104,8 @@ class Todo extends Component {
   constructor(props) {
     super(props);
 
+    this.ref = createRef();
+
     this.state = {
       todos: [
         {
@@ -252,6 +124,7 @@ class Todo extends Component {
           name: "Clean the house",
         },
       ],
+      visible: true,
     };
 
     this.handleTodoAppend = this.handleTodoAppend.bind(this);
@@ -266,15 +139,15 @@ class Todo extends Component {
 
     copy[index] = { ...copy[index], completed: !copy[index].completed };
 
-    this.setState({ ...this.state, todos: copy });
+    this.setState({ todos: copy });
   }
 
   handleTodoAppend(todo) {
-    this.setState({ ...this.state, todos: [...this.state.todos, todo] });
+    this.setState({ todos: [...this.state.todos, todo] });
   }
 
-  handleChange(newState) {
-    this.setState({ todos: newState });
+  handleChange(todos) {
+    this.setState({ todos });
   }
 
   static getDerivedStateFromProps(props, state) {
@@ -283,6 +156,10 @@ class Todo extends Component {
     }
 
     return { ...state };
+  }
+
+  componentDidMount() {
+    console.log(this.ref.current);
   }
 
   render() {
@@ -296,21 +173,43 @@ class Todo extends Component {
           </span>
         </div>
         <section style={{ padding: "5px" }}>
+          <button
+            onClick={() => this.setState({ visible: !this.state.visible })}
+            ref={this.ref}
+          >
+            {this.state.visible ? "Unmount" : "Mount"}
+          </button>
           <Todos
             todos={this.state.todos}
             toggle={this.handleToggle}
-            setState={this.handleChange}
-            color={this.state.color}
+            change={this.handleChange}
           />
         </section>
         <CreateTodo onTodoCreation={this.handleTodoAppend} />
+        {this.state.visible ? (
+          <Visible
+            ref={(ref) =>
+              ref && console.log("Visible > get state from ref", ref.state)
+            }
+          />
+        ) : null}
       </div>
     );
   }
 }
 
-const root = document.getElementById("root");
+class Visible extends Component {
+  state = { tyler: "is amazing" };
 
-let shouldRender = false;
+  componentWillUnmount() {
+    console.log("unmount");
+  }
+
+  render() {
+    return <div>Visible</div>;
+  }
+}
+
+const root = document.getElementById("root");
 
 render(<Todo nullify={false} />, root);
