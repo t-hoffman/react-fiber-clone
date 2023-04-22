@@ -1,4 +1,10 @@
-import React, { render, Component, createRef, useState } from "./React";
+import React, {
+  render,
+  Component,
+  createRef,
+  useState,
+  useEffect,
+} from "./React";
 
 class Todos extends Component {
   render() {
@@ -43,9 +49,9 @@ class CreateTodo extends Component {
   }
 
   componentDidUpdate(prevProps, prevState, snapShot) {
-    console.log(prevProps);
-    console.log(prevState);
-    console.log(snapShot);
+    // console.log(prevProps);
+    // console.log(prevState);
+    // console.log(snapShot);
   }
 
   render() {
@@ -104,6 +110,12 @@ const Counter = () => {
   const [count, setCount] = useState(0);
   const [greeting, setGreeting] = useState("<COUNTER/>");
 
+  useEffect(() => {
+    console.log("from effect " + count);
+
+    return () => console.log("cleanup " + count);
+  }, [greeting]);
+
   return (
     <div>
       <div
@@ -124,7 +136,7 @@ const Counter = () => {
           <span style={{ fontSize: "18pt" }}>{count}</span>
         </div>
         <div>
-          <button onClick={() => setCount(count + 1)}>+</button>
+          <button onClick={() => setCount((prev) => prev + 1)}>+</button>
           <button onClick={() => setGreeting("<TYLER/>")}>GREET</button>
         </div>
       </div>
@@ -191,7 +203,7 @@ class Todo extends Component {
   }
 
   componentDidMount() {
-    console.log(this.ref.current);
+    // console.log(this.ref.current);
   }
 
   render() {
@@ -212,7 +224,10 @@ class Todo extends Component {
           />
         </section>
         <CreateTodo onTodoCreation={this.handleTodoAppend} />
-        <Counter />
+        <button onClick={() => this.setState({ visible: !this.state.visible })}>
+          {this.state.visible ? "Unmount" : "Mount"}
+        </button>
+        {this.state.visible ? <Counter /> : null}
       </div>
     );
   }

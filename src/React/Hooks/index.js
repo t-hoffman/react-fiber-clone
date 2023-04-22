@@ -1,3 +1,4 @@
+import { NO_EFFECT, PASSIVE_EFFECT } from "../Constants";
 import { getWorkInProgressFiber, clearWorkInProgressFiber } from "../Misc";
 import { scheduleFunctionalUpdate } from "../Reconciliation";
 
@@ -42,7 +43,10 @@ export function updateFunctionalComponent(fn) {
 
 function rawSetter(currentHook, fiber) {
   return (value) => {
-    currentHook.queue.push(value);
+    const newState =
+      typeof value === "function" ? value(currentHook.memoizedState) : value;
+
+    currentHook.queue.push(newState);
 
     scheduleFunctionalUpdate(fiber);
   };
@@ -50,7 +54,6 @@ function rawSetter(currentHook, fiber) {
 
 export function useState(initialState) {
   getNextHook();
-  console.log(currentHook);
 
   if (!currentHook.queue) {
     currentHook.memoizedState = initialState;
@@ -63,4 +66,61 @@ export function useState(initialState) {
   const setter = rawSetter(currentHook, currentFiber);
 
   return [value, setter];
+}
+
+function isInputDifferent(input, prevInput) {
+  let index = 0,
+    alreadyDifferent = false;
+
+  if (!prevInput) {
+    return true;
+  }
+
+  if (Array.isArray(input) && input.length === 0) {
+    return false;
+  }
+
+  while (index < input.length && !alreadyDifferent) {
+    if (input[index] !== prevInput[index]) {
+      alreadyDifferent = true;
+    }
+
+    index++;
+  }
+
+  return alreadyDifferent;
+}
+
+export function useEffect(create, input) {
+  getNextHook();
+
+  let prevEffect, prevInput;
+
+  if (!currentHook.queue) {
+    currentHook.memoizedState = {
+      create,
+      destroy: null,
+      input,
+      effect: PASSIVE_EFFECT,
+    };
+
+    currentHook.queue = [currentHook.memoizedState];
+  } else {
+    prevEffect = currentHook.memoizedState;
+    prevInput = prevEffect.input;
+    currentHook.memoizedState = {
+      create,
+      destroy: prevEffect.destroy,
+      input,
+      effect: PASSIVE_EFFECT,
+    };
+
+    currentHook.queue.push(currentHook.memoizedState);
+  }
+
+  if (!isInputDifferent(input, prevInput)) {
+    currentHook.memoizedState.effect = NO_EFFECT;
+  }
+
+  currentFiber.updateQueue.push(currentHook.memoizedState);
 }

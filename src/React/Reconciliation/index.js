@@ -13,6 +13,7 @@ import {
   UPDATE,
   DELETION,
   FUNCTIONAL_COMPONENT,
+  PASSIVE_EFFECT,
 } from "./../Constants";
 
 import {
@@ -104,9 +105,18 @@ function reconcileChildren(fiber, children) {
         parent: fiber,
         effects: [],
         effectTag: PLACEMENT,
+        updateQueue: [],
       };
 
       newFiber.stateNode = createStateNode(newFiber);
+
+      if (getTag(element) === FUNCTIONAL_COMPONENT) {
+        newFiber.memoizedState = {
+          memoizedState: undefined,
+          next: undefined,
+          queue: undefined,
+        };
+      }
 
       alternate.effectTag = DELETION;
       fiber.effects.push(alternate);
@@ -121,6 +131,7 @@ function reconcileChildren(fiber, children) {
         parent: fiber,
         effects: [],
         effectTag: UPDATE,
+        updateQueue: [],
         memoizedState: alternate.memoizedState,
         snapshotEffect: alternate.stateNode.getSnapshotBeforeUpdate
           ? true
@@ -136,6 +147,7 @@ function reconcileChildren(fiber, children) {
         parent: fiber,
         effects: [],
         effectTag: PLACEMENT,
+        updateQueue: [],
       };
 
       if (getTag(element) === FUNCTIONAL_COMPONENT) {
@@ -268,9 +280,34 @@ function commitAllWork(fiber) {
   /**
    * Commit all the painting related work.
    */
+
   fiber.effects.forEach(commitWork);
   fiber.stateNode.__rootFiberContainer = fiber;
   pendingCommit = null;
+
+  const effectHooks = fiber.effects.filter(
+    (effect) => effect.updateQueue.length > 0
+  );
+
+  effectHooks.forEach((effect) => {
+    effect.updateQueue.forEach((hook) => {
+      if (hook.effect === PASSIVE_EFFECT) {
+        let destroy = hook.destroy;
+
+        if (typeof destroy === "function") {
+          destroy();
+        }
+
+        if (effect.effectTag !== DELETION) {
+          hook.destroy = hook.create();
+        }
+      } else {
+        if (effect.effectTag === DELETION) {
+          hook.destroy();
+        }
+      }
+    });
+  });
 
   const assignRefs = fiber.effects.filter(
     (effect) =>
